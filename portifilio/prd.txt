@@ -1,0 +1,80 @@
+Here is the complete Product Requirements Document (PRD) filled out for **ToposRAG**, tailored to operate as a local codebase analytics tool without cloud dependencies.
+
+# Product Requirements Document (PRD): ToposRAG
+
+## 1. Executive Summary
+
+**ToposRAG** is a local, AI-powered codebase analytics tool designed to help developers seamlessly navigate, query, and map their code repositories. By leveraging local LLM runners and graph-based codebase mapping, it removes the need for cloud APIs, ensuring absolute data privacy and offline accessibility. The core problem this solves is the cognitive overload developers face when exploring large, unfamiliar codebases or trying to trace complex execution paths, providing an intelligent local assistant that understands the structural graph of the code.
+
+## 2. Objectives & Success Metrics
+
+**Business & Technical Goals:**
+
+* Deliver a fully offline, zero-telemetry codebase analytics experience.
+* Achieve seamless integration with local AI runners (e.g., Ollama) for fast, context-aware querying.
+* Establish a highly accurate graph representation of directories, files, and dependencies.
+
+**Key Performance Indicators (KPIs):**
+
+* **Time to Index:** The time taken to generate the initial graph map of a standard 10,000-line repository.
+* **Query Latency:** The response time for a natural language query executed on local CPU hardware.
+* **Context Accuracy:** The percentage of AI-generated answers that correctly reference the accurate file paths and functions mapped by the graph.
+
+## 3. User Stories & Acceptance Criteria
+
+| As a... | I want to... | So that... | Acceptance Criteria |
+| --- | --- | --- | --- |
+| **Software Developer** | trigger a codebase scan via a CLI command | the tool builds a graph representation of my project | Running the init command generates a local mapping file (e.g., `.toposrag/graph.json`) within 60 seconds. |
+| **Software Developer** | ask a natural language question about a specific function | I can understand its role without manually searching files | The system returns an accurate explanation and cites the exact file path. |
+| **Privacy-Conscious User** | run the entire application completely offline | my proprietary code never leaves my local machine | The tool functions 100% when the system network adapter is disabled. |
+| **System Admin** | configure the local model parameters (e.g., temperature, context window) | I can optimize the AI's performance for my specific hardware | A configuration file allows updating model parameters, which reflect immediately on the next query. |
+| **Developer** | view a visual or structural map of my dependencies | I can see how different modules interact | The tool outputs a graph representation identifying cyclic dependencies and core modules. |
+
+## 4. Functional Requirements
+
+* **Graph-Based Code Mapping (Graphify Integration):**
+* The system must parse the specified repository and extract entities (functions, classes, variables) and their relationships (imports, calls).
+* Must handle dynamic ignoring of common dependency folders (e.g., `node_modules`, `.git`).
+
+
+* **Local LLM Query Engine:**
+* The tool must route user queries to a locally running model via Ollama or a similar local API endpoint.
+* The prompt sent to the LLM must be dynamically augmented with the most relevant sub-graphs (Retrieval-Augmented Generation).
+
+
+* **State Management:**
+* The graph index must update incrementally when files are modified, rather than requiring a full re-index every time.
+
+
+
+## 5. Non-Functional Requirements
+
+* **Hardware Efficiency Constraints:** The system must be optimized to run inference and graph indexing entirely on CPU-only setups. It is specifically targeted to run smoothly on legacy or integrated setups, such as an Intel Core i7-4770 processor with 16GB of RAM and integrated graphics, without requiring a dedicated graphics card.
+* **Security & Privacy:** Zero external network requests are permitted. No telemetry, crash reporting, or data harvesting can be included in the build.
+* **Scalability:** The graph indexing algorithm must not exceed 2GB of memory footprint when analyzing repositories up to 100,000 lines of code.
+
+## 6. Technical Architecture & Stack
+
+* **Environment / Platform:** Desktop CLI (Command Line Interface).
+* **Backend / Processing:** Node.js or Python, depending on the ecosystem chosen for graph extraction.
+* **Database / Storage:** Local JSON stores or a lightweight local vector database (e.g., ChromaDB or SQLite with vector extensions) stored in a hidden repository folder.
+* **AI Integration:** Ollama (serving quantized models like Llama 3 8B or Phi-3) communicating over `localhost:11434`.
+* **System Flow:**
+1. User executes a query in the terminal.
+2. The application searches the local graph/vector store for relevant code snippets.
+3. A refined prompt (Query + Code Context) is packaged.
+4. The prompt is sent via REST to the local Ollama instance.
+5. The response is streamed back to the user's terminal window.
+
+
+
+## 7. Out of Scope (For MVP)
+
+* A fully interactive Web GUI or Electron-based graphical interface.
+* Integration with cloud-based LLM providers (e.g., OpenAI, Anthropic).
+* Real-time live-sync of file changes (users will manually trigger an update/index command for this release).
+* Multi-repository cross-referencing.
+
+---
+
+Would you like to refine any of these technical constraints for ToposRAG, or should we draft a separate PRD for another architecture, such as the SocialConnect messaging app?

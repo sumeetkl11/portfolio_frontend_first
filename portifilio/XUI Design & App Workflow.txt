@@ -1,0 +1,133 @@
+# UX/UI Design & App Workflow Specification: "The Digital Nexus" (3D Portfolio)
+
+**Project Name:** "The Digital Nexus" (Sumeet Kanhiya's 3D Developer Portfolio)
+**Platform:** Web Application (React.js + React Three Fiber / Drei)
+**Core User Goal:** Seamlessly navigate a 3D space to explore the developer's full-stack projects (Tastebuds, SocialConnect), review technical architecture, and access professional contact links without experiencing frame drops on standard integrated graphics hardware.
+**Design Vibe/Theme:** Modern cyber-tech aesthetic, dark mode (deep space background), performance-optimized glassmorphism, with electric blue to violet accent gradients.
+
+---
+
+## 1. User Journey & App Workflow
+
+The navigation is primarily driven by vertical scrolling, which hijacked and mapped to camera movements along the Z-axis in the 3D scene.
+
+* **Step 1: Initialization & Loading.** User lands on the URL. A minimal, high-contrast preloader masks the WebGL canvas initialization and asset loading (textures, fonts).
+* **Step 2: The Hero Drop-in.** Once assets load (100%), the preloader fades, and the 3D camera swoops down to the origin point `[0, 0, 0]`. The HTML overlay fades in the primary introduction (Name and Title).
+* **Step 3: Project Exploration (Scroll Event).** The user scrolls down. The camera travels forward to the "Project City" coordinate.
+* *Conditional Path:* If the user pauses scrolling, the camera floats with a gentle sine-wave bob.
+* *Interaction:* The user hovers over a project card (e.g., Tastebuds). The card tilts, and a "View Architecture (TRD)" or "GitHub" link illuminates.
+
+
+* **Step 4: Journey Timeline.** User continues scrolling. The camera pans right, revealing the glowing experience nodes (Freelance, Tastebuds AI Initiative, DUET).
+* **Step 5: Contact Terminal.** Final scroll brings the user inside the "Terminal Core." Glowing action nodes present external links (LinkedIn, GitHub, Email). Clicking opens a new browser tab.
+
+---
+
+## 2. Screen-by-Screen UI Breakdown
+
+*(Note: Since this is a single-page 3D application, "Screens" refer to camera stops/waypoints within the WebGL scene accompanied by dynamic HTML overlays).*
+
+### Screen 1: The Preloader & Hero
+
+* **Primary Purpose:** Hook the user instantly while masking the heavy initial render cycle of the 3D engine.
+* **Layout Structure:**
+* *Top:* Fixed transparent Navbar (Home, Projects, Experience, Contact).
+* *Middle (3D):* Slowly rotating abstract low-poly torus knot.
+* *Middle (2D Overlay):* "Hi, I'm Sumeet Kanhiya" header, Full-Stack Developer subtext.
+* *Bottom:* A pulsing "Scroll to Explore" mouse icon.
+
+
+* **Key UI Elements:** `h1` Hero text, Glassmorphism Navbar, CSS-animated scroll indicator.
+
+### Screen 2: The Project Monoliths
+
+* **Primary Purpose:** Showcase key technical projects (Tastebuds, SocialConnect, Linkforge) interactively.
+* **Layout Structure:**
+* *Top:* Active Navbar state shifts to "Projects."
+* *Middle (3D):* 3 floating monolith objects in a grid formation.
+* *Middle (2D Overlay):* CSS 3D-transformed project cards synced to the 3D object positions using `@react-three/html`.
+
+
+* **Key UI Elements:**
+* Interactive Glass Cards (Title, Tech Stack Pills).
+* Primary Action Button: "View Architecture (TRD)."
+* Secondary Action: GitHub Icon Button.
+
+
+
+### Screen 3: The Experience Path
+
+* **Primary Purpose:** Display the developer's timeline and academic/freelance history sequentially.
+* **Layout Structure:**
+* *Left:* Glowing SVG/3D line representing the timeline path.
+* *Right:* Information nodes that fade in as they intersect the center of the viewport.
+
+
+* **Key UI Elements:** Scroll-linked progress bar, Glowing text nodes (Job Title, Date, Responsibilities).
+
+### Screen 4: The Core Terminal (Contact)
+
+* **Primary Purpose:** Drive conversion (getting the recruiter/client to reach out).
+* **Layout Structure:**
+* *Center:* "Let's Build Something Scalable" CTA.
+* *Bottom:* Floating, glowing interaction nodes.
+
+
+* **Key UI Elements:** Large high-contrast Mailto button, minimalist social icons with hover glow effects.
+
+---
+
+## 3. Component Hierarchy (For Declarative UI)
+
+To maintain 60fps and strict memory management, the DOM and WebGL components are strictly separated.
+
+* `App` (Main wrapper, manages global state/theme)
+* `LoaderOverlay` (Handles 0-100% loading state via `useProgress`)
+* `DOM_Overlay_Layer` (Standard React components, absolutely positioned over canvas)
+* `Navbar`
+* `HeroText`
+* `ProjectOverlayCards`
+* `GlassCard` (Tastebuds)
+* `GlassCard` (SocialConnect)
+* `GlassCard` (Linkforge)
+
+
+* `TimelineTextNodes`
+* `ContactCTA`
+
+
+* `Canvas3D` (The single WebGL context)
+* `CameraRig` (GSAP ScrollTrigger attached to camera position/rotation)
+* `Lights` (AmbientLight, DirectionalLight - kept minimal)
+* `Environment_Scene` (Background fog, subtle particles)
+* `HeroGeometry` (Low-poly rotating mesh)
+* `ProjectMonoliths` (Instanced meshes for performance)
+* `TimelinePath` (3D Spline curve)
+* `PostProcessing` (Optional, disabled if hardware detects low FPS)
+
+
+
+
+
+---
+
+## 4. State & Micro-Interactions
+
+### Loading States
+
+* **Initial Load:** A stark black screen with a minimal white monospace counter `[ 0% ... 100% ]`. No layout shifts.
+* **Asset Lazy-Loading:** Heavy 3D assets (if any) are loaded using React `Suspense`. A subtle wireframe box serves as a placeholder geometry until the material fully compiles.
+
+### Empty / Fallback States
+
+* **Accessibility (Reduced Motion):** If `window.matchMedia('(prefers-reduced-motion: reduce)')` is true, the 3D Canvas completely unmounts. The application falls back to a clean, highly polished 2D CSS-only scrolling website to respect user OS preferences.
+* **Low Performance Fallback:** If the `drei` `PerformanceMonitor` detects FPS dropping below 30 (e.g., on systems relying purely on integrated graphics with heavy background tasks), pixel ratio (`DPR`) drops to `1` and particle effects fade out.
+
+### Error Visuals
+
+* **WebGL Failure:** If the browser does not support WebGL, a sleek error boundary renders: *"Terminal Error: WebGL context lost. Switching to standard view."* The app immediately renders the 2D fallback component hierarchy.
+
+### Micro-Interactions
+
+* **Hover (Projects):** Using `react-parallax-tilt`, the 2D HTML project cards slightly rotate toward the mouse cursor. A subtle violet `box-shadow` illuminates to simulate a light source from the cursor.
+* **Scroll (Camera):** The camera does not snap abruptly. It uses a dampening function (e.g., `lerp` in the `useFrame` hook) so that when the user stops scrolling, the camera glides smoothly to a halt, giving a feeling of weight and fluid momentum in zero gravity.

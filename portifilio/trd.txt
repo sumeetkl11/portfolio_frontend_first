@@ -1,0 +1,164 @@
+# Technical Requirements Document (TRD): Tastebuds (AI Recipe Generator)
+
+## 1. System Architecture
+
+Tastebuds operates on a decoupled client-server architecture. The frontend application handles user dietary inputs and preference states, communicating via RESTful endpoints to a Node.js backend. The backend acts as an orchestration layer, managing asynchronous calls to the Gemini API for intelligent meal generation and persisting structured data into a PostgreSQL database.
+
+**High-Level Architecture Flow:**
+
+```text
+[ React.js Client ]
+        │
+        ▼ (REST / JSON)
+[ Node.js / Express Controller ] ──(REST over HTTPS)──> [ Google Gemini API ]
+        │                                                     (Generates Recipe Data)
+        ├──> [ Data Sanitization & Parsing Layer ]
+        │
+        ▼ (SQL / Prisma ORM)
+[ PostgreSQL Database ] 
+  (Stores Users, Dietary Preferences, and Generated Meal Plans)
+
+```
+
+## 2. Technology Stack Justification
+
+* **Client/Frontend (React.js):** Provides a highly reactive user interface necessary for managing dynamic forms (dietary restrictions, ingredient exclusions) and rendering complex recipe cards without page reloads.
+* **Backend (Node.js/Express.js):** The non-blocking, event-driven architecture of Node.js is uniquely suited to handle the latency introduced by external LLM API calls. It allows the server to process multiple concurrent requests without blocking the main thread while waiting for the Gemini API to respond.
+* **Database (PostgreSQL):** A relational database ensures strict data integrity for user profiles and nested dietary constraints. JSONB columns in PostgreSQL provide flexibility for storing dynamically generated recipe objects (which may vary in structure) while maintaining standard SQL relational mapping for users and plans.
+* **AI Integration (Gemini API):** Selected for its high context window and low latency in text-generation tasks. Prompt engineering strategies enforce strict JSON schema outputs, eliminating parsing errors in the backend.
+
+## 3. Data Models & Database Schema
+
+The database schema normalizes user preferences while allowing flexible storage of the AI-generated content.
+
+```sql
+-- Users Table
+CREATE TABLE Users (
+    user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Dietary Preferences Table
+CREATE TABLE Preferences (
+    preference_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES Users(user_id) ON DELETE CASCADE,
+    diet_type VARCHAR(50) NOT NULL, -- e.g., 'Vegan', 'Keto', 'High-Protein'
+    allergies TEXT[],               -- Array of strings e.g., ['Peanuts', 'Dairy']
+    caloric_target INT
+);
+
+-- Meal Plans & Recipes Table
+CREATE TABLE MealPlans (
+    plan_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES Users(user_id) ON DELETE CASCADE,
+    generated_content JSONB NOT NULL, -- Stores the structured Gemini API output
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+```
+
+## 4. API Endpoints & Interfaces
+
+The backend exposes strict RESTful endpoints. The core action requires parsing user constraints and injecting them into a structured prompt for the LLM.
+
+### 4.1. Generate Meal Plan `POST /api/v1/recipes/generate`
+
+Initiates the AI generation sequence based on the user's dietary profile.
+
+**Request Payload:**
+
+```json
+{
+  "user_id": "a1b2c3d4-e5f6-7890",
+  "diet_type": "High-Protein",
+  "excluded_ingredients": ["dairy", "gluten"],
+  "meals_per_day": 3,
+  "caloric_target": 2500
+}
+
+```
+
+**Expected Response Payload (After Gemini API Processing):**
+
+```json
+{
+  "status": "success",
+  "plan_id": "f9e8d7c6-b5a4-3210",
+  "data": {
+    "total_calories": 2480,
+    "meals": [
+      {
+        "type": "Breakfast",
+        "name": "Egg White & Spinach Scramble",
+        "ingredients": ["Egg whites", "Spinach", "Olive oil"],
+        "macros": { "protein": "35g", "carbs": "10g", "fat": "15g" }
+      }
+      // ... additional meals
+    ]
+  }
+}
+
+```
+
+## 5. Hardware & Resource Management
+
+While the application does not rely on local GPU rendering, it must efficiently manage network bottlenecks and processing constraints.
+
+* **Long-Polling & Timeout Handling:** LLM generation can take 5–15 seconds. The Express server timeout limits must be extended (e.g., to 30 seconds) to prevent premature connection drops. Alternatively, a webhook/WebSocket pattern can be implemented for immediate client acknowledgment.
+* **Prompt Optimization:** Prompts sent to Gemini are strictly minified and utilize "Few-Shot Prompting" to enforce JSON compliance, reducing token usage and parsing overhead on the Node.js thread.
+* **Connection Pooling:** Database queries utilize a connection pool (e.g., `pg-pool`) to prevent connection exhaustion during high-concurrency periods.
+
+## 6. Security & Authentication
+
+* **API Key Protection:** The `GEMINI_API_KEY` and database connection strings are strictly maintained in backend `.env` variables and never exposed to the React frontend.
+* **Authentication:** Endpoints are protected via JSON Web Tokens (JWT). The client must pass a valid Bearer token in the `Authorization` header to access the `/api/v1/recipes/*` routes.
+* **Rate Limiting:** To prevent malicious exploitation of the paid Gemini API, the backend implements `express-rate-limit`, capping users to 5 generation requests per hour.
+* **Input Sanitization:** All arrays (like `excluded_ingredients`) are sanitized to prevent prompt injection attacks where a user might attempt to override the AI's system instructions.
+
+## 7. Deployment & Environment Setup
+
+**Step 1: Environment Configuration**
+Create a `.env` file in the root directory.
+
+```env
+PORT=8080
+DATABASE_URL=postgresql://user:password@localhost:5432/tastebuds
+GEMINI_API_KEY=your_api_key_here
+JWT_SECRET=secure_random_string
+
+```
+
+**Step 2: Database Initialization**
+Run the migration scripts to establish the PostgreSQL schema.
+
+```bash
+npm run db:migrate
+
+```
+
+**Step 3: Install Dependencies**
+Install all required Node.js packages.
+
+```bash
+npm install
+
+```
+
+**Step 4: Local Development Execution**
+Start the development server with live reloading.
+
+```bash
+npm run dev
+
+```
+
+**Step 5: Production Deployment**
+Deploy the React build to a static host (e.g., Vercel) and the Node.js application to a containerized platform (e.g., Render or AWS ECS).
+
+```bash
+npm run build
+npm start
+
+```

@@ -1,0 +1,68 @@
+Phase 1: Environment & Foundation Setup
+Sabse pehle project ka dhancha (skeleton) khada karna hai.
+
+Initialize the Project: Naya folder banao aur npm init -y run karo. Typescript, ts-node, aur @types/express ko as dev dependencies install karo.
+
+Folder Structure: Apne root directory mein yeh structure create karo:
+
+src/config/ (Database aur rate limiter settings ke liye)
+
+src/controllers/ (Main logic: Projects, Contact, Tastebuds API)
+
+src/middlewares/ (Zod validation, Error handling, Auth)
+
+src/routes/ (Express router files)
+
+src/schemas/ (Zod schemas for validation)
+
+Environment Variables: Ek .env file setup karo jisme tumhara DATABASE_URL (PostgreSQL), PORT, aur GEMINI_API_KEY secure rahe.
+
+🗄️ Phase 2: Database Modeling with Prisma
+Backend logic likhne se pehle database solid hona zaroori hai.
+
+Initialize Prisma: npx prisma init run karo. Yeh tumhare liye .env file aur schema.prisma file bana dega.
+
+Define Models: schema.prisma mein apne models define karo:
+
+Project (Tastebuds, SocialConnect jese projects feed karne ke liye).
+
+Message (Contact form submissions ke liye).
+
+ApiLog (Analytics aur debugging ke liye).
+
+Database Migration: Jab schema ready ho jaye, toh npx prisma migrate dev --name init run karo. Yeh tumhare local PostgreSQL mein actual tables create kar dega aur Prisma Client generate karega jisko tum apne code mein import karoge.
+
+🛡️ Phase 3: Middleware & Security Layer
+Routes open karne se pehle security checkpoints lagana lazmi hai.
+
+Global Middlewares: index.ts (ya server.ts) mein express.json(), helmet() (security headers ke liye), aur cors() setup karo. CORS ko strict rakho taake sirf tumhara frontend domain API ko hit kar sake.
+
+Rate Limiting: express-rate-limit install karo aur ek rule banao (e.g., 3 requests per hour) aur isko sirf /api/v1/contact route pe apply karo taake spam messages na aayen.
+
+Validation Middleware: Zod use karke ek generic middleware banao jo aane wali req.body ko validate kare. Agar body galat ho (jaise invalid email), toh controller tak baat pohanchne se pehle hi 400 Bad Request return kar de.
+
+⚙️ Phase 4: Controllers & Routing
+Ab actual business logic likhne ki baari hai.
+
+Projects Route (GET /projects): Ek simple controller banao jo Prisma use karke saare Project fetch kare. Agar query param mein ?featured=true hai, toh Prisma ki where clause use karke sirf featured projects return karo.
+
+Contact Route (POST /contact):
+
+Validation pass hone ke baad, Prisma ke through data ko Message table mein insert karo.
+
+Ziada professional touch ke liye, is point pe ek email service (jaise Nodemailer) trigger karwa sakte ho jo tumhe notification bhej de ke naya message aaya hai.
+
+AI Proxy Route (POST /tastebuds/generate-recipe):
+
+Client se dietary preferences receive karo.
+
+Backend se Gemini API ko call lagao (using your hidden API key).
+
+Gemini se aane wale JSON ko sanitize karo aur frontend ko structured data return karo. Yeh proxy approach client-side se API keys chori hone ka risk khatam kar deti hai.
+
+🚨 Phase 5: Error Handling & Final Polish
+Global Error Handler: index.ts ke bilkul aakhir mein ek error-handling middleware add karo. Agar kisi bhi controller mein error aaye (jaise database down ho), toh app crash na ho, balki ek clean JSON response {"success": false, "message": "Server Error"} jaye.
+
+Testing Logs: Postman ya Thunder Client use karke apne teeno routes ko hit karo. Check karo ke Zod validation sahi se error de raha hai aur Rate Limiter block kar raha hai ya nahi.
+
+Build & Deploy Prep: tsc command run karke apni TypeScript ko JavaScript mein compile karo aur dist/ folder generate karo jo production server (jaise Render ya VPS) pe deploy hoga.
